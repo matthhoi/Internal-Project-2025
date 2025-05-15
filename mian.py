@@ -35,6 +35,26 @@ def show_password():
         password_entry.config(show=is_visable)
         show_password.config(text="Show Password")
 
+def login():
+    """Check if the username and password are correct."""
+    with sqlite3.connect(DATABASE) as d_b:
+        print(username_entry.get())
+        print(password_entry.get())
+        cursor = d_b.cursor()
+        qrl = f"""SELECT name FROM staff WHERE username = "{username_entry.get()}" 
+        AND password = "{password_entry.get()}";"""
+        cursor.execute(qrl)
+        results = cursor.fetchall()
+        print(results)
+        if not results == []:
+            messagebox.showinfo("Login", "Login successful!")
+            window.destroy()
+            # Call the main function here
+        else:
+            messagebox.showerror("Login", "Invalid username or password.")
+            username_entry.delete(0, tk.END)
+            password_entry.delete(0, tk.END)
+
 # login window
 while exit == False:
     while True:
@@ -77,7 +97,7 @@ while exit == False:
     
     # Create the login button
     login_button = tk.Button(frame, text="login", font=('Arial', 15,"bold"), 
-                              bg=white, width=10, height=2,)
+                             bg=white, width=10, height=2, command=login)
     login_button.place(x=225, y=400)
     window.mainloop()
 
