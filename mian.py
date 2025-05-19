@@ -38,16 +38,15 @@ def show_password():
 def login():
     """Check if the username and password are correct."""
     with sqlite3.connect(DATABASE) as d_b:
-        print(username_entry.get())
-        print(password_entry.get())
+        # Check if the username and password are correct
         cursor = d_b.cursor()
         qrl = f"""SELECT name FROM staff WHERE username = "{username_entry.get()}" 
         AND password = "{password_entry.get()}";"""
         cursor.execute(qrl)
         results = cursor.fetchall()
-        print(results)
         if not results == []:
-            messagebox.showinfo("Login", "Login successful!")
+            messagebox.showinfo("Login", 
+                                f"Login successful! \n Welcome {results[0][0]}")
             window.destroy()
             # Call the main function here
         else:
