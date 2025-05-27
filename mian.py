@@ -18,15 +18,90 @@ white = "#ffffff"
 exit = False
 login = False
 is_visable = "*"
-menu = 1
+menu = 2
+staff_id = 0
+text_color = "black"
+order_id = 0
+total_price = 0.0
+order_no = 0
 
 # functions
 def error_message(msg):
-    """Display an error message."""
+    """Display an error message"""
     messagebox.showerror("Error", msg)
 
+def order_finish():
+    """Finish the order and display a message"""
+    global staff_id, order_id, total_price, order_no
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        # Insert the order into the orders table
+        qrl = f"""INSERT INTO [order] VALUES ({staff_id}, {total_price}, 
+        {order_id}, {order_no});"""
+        cursor.execute(qrl)
+        d_b.commit()
+    messagebox.showinfo("Order Finished", "Your order has been finished.")
+
+def button_text(i,j):
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        qrl = f"SELECT text FROM key_pad where row = {i} and Column = {j};"
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+    return result[0][0]
+
+def item_text(i,j):
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        qrl = f"SELECT product_name FROM products where row = {i} and Column = {j};"
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+    return result[0][0]
+
+def on_button_click(row, column):
+    messagebox.showinfo("Button Clicked", f"Row {row}, Column {column}")
+
+def on_item_grid_click(row, column):
+    pass
+
+def key_pad(window):
+    """display the keypad"""
+    global bg_color, label_color, white
+    rframe = tk.Frame(master=window, bg=bg_color)
+    rframe.place(x=650, y=15, width=350, height=600)
+
+    for i in range(6):
+        for j in range(3):
+            frame = tk.Frame(master=rframe, relief=tk.RAISED, borderwidth=1, 
+                             bg="white")
+            frame.grid(row=i,column=j,padx=8,pady=8)
+            text = button_text(i,j)
+            button = tk.Button(master=frame, text=text, cursor="hand2", 
+                               width=11, height=4, command=lambda i=i,j=j: 
+                               on_button_click(i, j))
+            button.pack()
+    button_finish = tk.Button(master=window, text="Finish order", 
+                              cursor="hand2", command=order_finish)
+    button_finish.place(x=640, y=570, width=350, height=30)
+
+def item_grid(window):
+    """display the keypad"""
+    global bg_color, label_color, white
+    dframe = tk.Frame(master=window, bg=bg_color)
+    dframe.place(x=25, y=170, width=550, height=420)
+    for i in range(5):
+        for j in range(4):
+            frame = tk.Frame(master=dframe, relief=tk.RAISED, borderwidth=1, 
+                             bg="white")
+            frame.grid(row=i,column=j,padx=15,pady=5)
+            text = item_text(i,j)
+            button = tk.Button(master=frame, text=text, cursor="hand2", 
+                               width=13, height=4, command=lambda i=i,j=j: 
+                               on_item_grid_click(i, j))
+            button.pack()
+
 def main_menu():
-    """Display the main menu."""
+    """Display the main menu"""
     global exit
     while exit == False:
         # Create the main menu window
@@ -35,14 +110,21 @@ def main_menu():
         window.geometry("1000x650")
         window.config(bg=bg_color)
         window.resizable(width=False, height=False)
+
+        # Create the right menu frame
+        key_pad(window)
+
+        # create the left menu frame
+        lframe = tk.Frame(master=window, bg=label_color)
+
         window.mainloop()
 
         # exit the program if the user clicks the exit button
         exit = messagebox.askokcancel("Exit", "Are you sure you want to exit?")
 
 def sub_menu():
-    """Display the sub menu."""
-    global exit
+    """Display the sub menu"""
+    global exit, bg_color, label_color, white, text_color
     while exit == False:
         # Create the main menu window
         window = tk.Tk()
@@ -50,6 +132,45 @@ def sub_menu():
         window.geometry("1000x650")
         window.config(bg=bg_color)
         window.resizable(width=False, height=False)
+
+        # Create the right menu frame
+        key_pad(window)
+
+        # create the left menu frame
+        lframe = tk.Frame(master=window,bg="white")
+        lframe.place(x=15,y=15,width=600,height=620)
+        lb_total_price = tk.Label(master=lframe, text="Total Price", 
+                                  font=('Arial',12,"bold"), fg=text_color, 
+                                  bg=white)
+        lb_item_price = tk.Label(master=lframe, text="Item Price", 
+                                 font=('Arial',12,"bold"), fg=text_color, 
+                                 bg=white)
+        lb_order_no = tk.Label(master=lframe, text="Order No", 
+                               font=('Arial',12,"bold"), fg=text_color, 
+                               bg=white)
+        tbox_total_price = tk.Text(master=lframe, width=18, height=2, 
+                                   state="disabled", borderwidth=2, bg=bg_color)
+        tbox_item_price = tk.Text(master=lframe, width=18, height=2, 
+                                  state="disabled", borderwidth=2, bg=bg_color)
+        tbox_order_no = tk.Text(master=lframe, width=18, height=2, 
+                                state="disabled", borderwidth=2, bg=bg_color)
+        R_desplay_bar = tk.Text(master=lframe, width=22, height=2, 
+                                state="disabled", borderwidth=2, bg=bg_color)
+        l_desplay_bar = tk.Text(master=lframe, width=45, height=2, 
+                                state="disabled", borderwidth=2, bg=bg_color)
+        
+        item_grid(window)
+        
+        # place all the widgets in the frame
+        lb_total_price.place(x=50,y=15)
+        lb_item_price.place(x=240,y=15)
+        lb_order_no.place(x=440,y=15)
+        tbox_total_price.place(x=15,y=50)
+        tbox_item_price.place(x=210,y=50)
+        tbox_order_no.place(x=405,y=50)
+        R_desplay_bar.place(x=380,y=100)
+        l_desplay_bar.place(x=15,y=100)
+
         window.mainloop()
 
         # exit the program if the user clicks the exit button
@@ -80,9 +201,10 @@ def menu_chager():
         sub_menu()
 
 def cheek_login():
-    """Check if the username and password are correct."""
-    global login
+    """Check if the username and password are correct"""
+    global login, staff_id
     with sqlite3.connect(DATABASE) as d_b:
+        
         # Check if the username and password are correct
         cursor = d_b.cursor()
         qrl = f"""SELECT name FROM staff WHERE username = "{username_entry.get()}" 
@@ -92,6 +214,15 @@ def cheek_login():
         if not results == []:
             messagebox.showinfo("Login", 
                                 f"Login successful! \n Welcome {results[0][0]}")
+            
+            # get the staff id
+            qrl = f"""SELECT staff_id FROM staff WHERE username = 
+            "{username_entry.get()}" AND password = "{password_entry.get()}";"""
+            cursor.execute(qrl)
+            results = cursor.fetchall()
+            staff_id = results[0][0]
+
+            # close the login window
             window.destroy()
             login = True
         else:
@@ -100,7 +231,7 @@ def cheek_login():
             password_entry.delete(0, tk.END)
 
 while __name__ == "__main__":
-    """Create the login window."""
+    """Create the login window"""
     # login window
     while login == False:
         # Create the login window
