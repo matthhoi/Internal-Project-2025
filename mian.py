@@ -42,27 +42,46 @@ def order_finish():
         d_b.commit()
     messagebox.showinfo("Order Finished", "Your order has been finished.")
 
-def button_text(i,j):
+def button_text(row,column):
+    """Get the text for the keypad buttons"""
     with sqlite3.connect(DATABASE) as d_b:
         cursor = d_b.cursor()
-        qrl = f"SELECT text FROM key_pad where row = {i} and Column = {j};"
+        qrl = f"""SELECT text FROM key_pad where row = {row} and Column = 
+        {column};"""
         cursor.execute(qrl)
         result = cursor.fetchall()
     return result[0][0]
 
-def item_text(i,j):
+def item_text(row,column):
+    """Get the text for the item grid buttons"""	
     with sqlite3.connect(DATABASE) as d_b:
         cursor = d_b.cursor()
-        qrl = f"SELECT product_name FROM products where row = {i} and Column = {j};"
+        qrl = f"""SELECT product_name FROM products where row = {row} and 
+        Column = {column};"""
         cursor.execute(qrl)
         result = cursor.fetchall()
     return result[0][0]
 
-def on_button_click(row, column):
+def on_button_click(row, column, window):
+    """Handle button click events"""
     messagebox.showinfo("Button Clicked", f"Row {row}, Column {column}")
 
-def on_item_grid_click(row, column):
-    pass
+def on_item_grid_click(row, column, lb_total_price, lb_item_price):
+    """Handle item grid button click events"""
+    global deplay_list
+    # get the product details from the database
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        qrl = f"""SELECT product_plu, product_name, product_price, 
+        product_catogory FROM products WHERE row = {row} and Column = 
+        {column};"""
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+        deplay_list = result
+    
+    # update the display bar
+    total_price_update(lb_total_price)
+    item_price_update(lb_item_price)
 
 def key_pad(window):
     """display the keypad"""
@@ -77,14 +96,14 @@ def key_pad(window):
             frame.grid(row=i,column=j,padx=8,pady=8)
             text = button_text(i,j)
             button = tk.Button(master=frame, text=text, cursor="hand2", 
-                               width=11, height=4, command=lambda i=i,j=j: 
-                               on_button_click(i, j))
+                               width=11, height=4, command=lambda i=i,j=j,
+                               window=window: on_button_click(i, j, window))
             button.pack()
     button_finish = tk.Button(master=window, text="Finish order", 
                               cursor="hand2", command=order_finish)
     button_finish.place(x=640, y=570, width=350, height=30)
 
-def item_grid(window):
+def item_grid(window, lb_total_price, lb_item_price):
     """display the keypad"""
     global bg_color, label_color, white
     dframe = tk.Frame(master=window, bg=bg_color)
@@ -96,8 +115,10 @@ def item_grid(window):
             frame.grid(row=i,column=j,padx=15,pady=5)
             text = item_text(i,j)
             button = tk.Button(master=frame, text=text, cursor="hand2", 
-                               width=13, height=4, command=lambda i=i,j=j: 
-                               on_item_grid_click(i, j))
+                               width=13, height=4, command=lambda i=i,j=j,
+                               lb_total_price=lb_total_price, 
+                               lb_item_price=lb_item_price: on_item_grid_click(
+                                i, j, lb_total_price, lb_item_price))
             button.pack()
 
 def main_menu():
@@ -134,7 +155,7 @@ def sub_menu():
         window.resizable(width=False, height=False)
 
         # Create the right menu frame
-        key_pad(window)
+        key_pad(window, lb_total_price, lb_item_price)
 
         # create the left menu frame
         lframe = tk.Frame(master=window,bg="white")
@@ -159,7 +180,7 @@ def sub_menu():
         l_desplay_bar = tk.Text(master=lframe, width=45, height=2, 
                                 state="disabled", borderwidth=2, bg=bg_color)
         
-        item_grid(window)
+        item_grid(window, lb_total_price, lb_item_price)
         
         # place all the widgets in the frame
         lb_total_price.place(x=50,y=15)
