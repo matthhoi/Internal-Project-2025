@@ -24,11 +24,32 @@ text_color = "black"
 order_id = 0
 total_price = 0.0
 order_no = 0
+deplay_list = [0, "product_name", 0.0, "product_catogory"]
+order_list = []
 
 # functions
 def error_message(msg):
     """Display an error message"""
     messagebox.showerror("Error", msg)
+
+def order_id_no_make():
+    """Generate a new order ID/order number"""
+    global order_id, order_no
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        # Get the last order ID/no from the database
+        qrl = """SELECT MAX(order_id), order_num FROM [order];"""
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+        # Increment the last order ID
+        order_id = result[0][0] + 1
+        # Increment the last order number
+        if result[1] is None:
+            # Start from 1 if no orders exist
+            order_no = 1  
+        elif result[1] > 100:
+            # Increment the last order no
+            order_no = result[1] + 1
 
 def order_finish():
     """Finish the order and display a message"""
@@ -40,7 +61,25 @@ def order_finish():
         {order_id}, {order_no});"""
         cursor.execute(qrl)
         d_b.commit()
+    # Reset the order details
+    order_id_no_make()
     messagebox.showinfo("Order Finished", "Your order has been finished.")
+
+def total_price_update(lb_total_price):
+    """update the total price text box"""
+    global total_price
+    lb_total_price.config(state='normal')
+    lb_total_price.delete('1.0', tk.END)
+    lb_total_price.insert(tk.END,total_price)
+    lb_total_price.config(state='disabled')
+
+def item_price_update(lb_item_price):
+    """update the total price text box"""
+    global deplay_list
+    lb_item_price.config(state='normal')
+    lb_item_price.delete('1.0', tk.END)
+    lb_item_price.insert(tk.END, deplay_list[2])
+    lb_item_price.config(state='disabled')
 
 def button_text(row,column):
     """Get the text for the keypad buttons"""
