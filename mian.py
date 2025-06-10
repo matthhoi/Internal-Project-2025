@@ -119,7 +119,13 @@ def item_text(row,column):
 
 def on_button_click(row, column, window):
     """Handle button click events"""
-    messagebox.showinfo("Button Clicked", f"Row {row}, Column {column}")
+    global deplay_list
+    # get the button details from the database
+    text = button_text(row, column)
+    if text == "Menu":
+        # change the menu
+        window.destroy()
+        menu_chager()
 
 def on_item_grid_click(row, column, tbox_total_price, tbox_item_price):
     """Handle item grid button click events"""
@@ -179,31 +185,65 @@ def item_grid(window, tbox_total_price, tbox_item_price):
 
 def main_menu():
     """Display the main menu"""
-    global exit
+    global exit, bg_color, label_color, white, text_color
     while exit == False:
-        # Create the main menu window
+        # Create the mian menu window
         window = tk.Tk()
         window.title("Login Window")
         window.geometry("1000x650")
         window.config(bg=bg_color)
         window.resizable(width=False, height=False)
-
-        # Create the right menu frame
-        key_pad(window)
-
+        
         # create the left menu frame
-        lframe = tk.Frame(master=window, bg=label_color)
+        lframe = tk.Frame(master=window,bg="white")
+        lframe.place(x=15,y=15,width=600,height=620)
+        lb_total_price = tk.Label(master=lframe, text="Total Price", 
+                                  font=('Arial',12,"bold"), fg=text_color, 
+                                  bg=white)
+        lb_item_price = tk.Label(master=lframe, text="Item Price", 
+                                 font=('Arial',12,"bold"), fg=text_color, 
+                                 bg=white)
+        lb_order_no = tk.Label(master=lframe, text="Order No", 
+                               font=('Arial',12,"bold"), fg=text_color, 
+                               bg=white)
+        tbox_total_price = tk.Text(master=lframe, width=18, height=2, 
+                                   state="disabled", borderwidth=2, bg=bg_color)
+        tbox_item_price = tk.Text(master=lframe, width=18, height=2, 
+                                  state="disabled", borderwidth=2, bg=bg_color)
+        tbox_order_no = tk.Text(master=lframe, width=18, height=2, 
+                                state="disabled", borderwidth=2, bg=bg_color)
+        R_desplay_bar = tk.Text(master=lframe, width=22, height=2, 
+                                state="disabled", borderwidth=2, bg=bg_color)
+        l_desplay_bar = tk.Text(master=lframe, width=45, height=2, 
+                                state="disabled", borderwidth=2, bg=bg_color)
+        
+        # Create the right menu frame
+        key_pad(window, tbox_total_price, tbox_item_price)
+        
+        # place all the widgets in the frame
+        lb_total_price.place(x=50,y=15)
+        lb_item_price.place(x=240,y=15)
+        lb_order_no.place(x=440,y=15)
+        tbox_total_price.place(x=15,y=50)
+        tbox_item_price.place(x=210,y=50)
+        tbox_order_no.place(x=405,y=50)
+        R_desplay_bar.place(x=380,y=100)
+        l_desplay_bar.place(x=15,y=100)
 
         window.mainloop()
 
-        # exit the program if the user clicks the exit button
-        exit = messagebox.askokcancel("Exit", "Are you sure you want to exit?")
+        if exit == False:
+            # exit the program if the user clicks the exit button
+            exit = messagebox.askokcancel("Exit", "Are you sure you want to exit?")
+        else:
+            # exit the program if the user clicks the exit button
+            break
 
 def sub_menu():
     """Display the sub menu"""
     global exit, bg_color, label_color, white, text_color
     while exit == False:
-        # Create the main menu window
+        # Create the sub menu window
         window = tk.Tk()
         window.title("Login Window")
         window.geometry("1000x650")
@@ -250,8 +290,12 @@ def sub_menu():
 
         window.mainloop()
 
-        # exit the program if the user clicks the exit button
-        exit = messagebox.askokcancel("Exit", "Are you sure you want to exit?")
+        if exit == False:
+            # exit the program if the user clicks the exit button
+            exit = messagebox.askokcancel("Exit", "Are you sure you want to exit?")
+        else:
+            # exit the program if the user clicks the exit button
+            break
 
 def show_password():
     """show the password"""
