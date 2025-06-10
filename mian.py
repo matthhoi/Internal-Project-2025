@@ -24,7 +24,7 @@ text_color = "black"
 order_id = 0
 total_price = 0.0
 order_no = 0
-deplay_list = [0, "product_name", 0.0, "product_catogory"]
+deplay_list = [(0, "product_name", 0.0, "product_catogory")]
 order_list = []
 
 # functions
@@ -41,15 +41,25 @@ def order_id_no_make():
         qrl = """SELECT MAX(order_id), order_num FROM [order];"""
         cursor.execute(qrl)
         result = cursor.fetchall()
+        
         # Increment the last order ID
-        order_id = result[0][0] + 1
-        # Increment the last order number
-        if result[1] is None:
+        if result[0][0] is None:
             # Start from 1 if no orders exist
-            order_no = 1  
-        elif result[1] > 100:
+            order_id = 1
+        else:
+            # Increment the last order ID
+            order_id = result[0][0] + 1
+
+        # Increment the last order number
+        if result[0][1] is None:
+            # Start from 1 if no orders exist
+            order_no = 1
+        elif result[0][1] > 100:
             # Increment the last order no
-            order_no = result[1] + 1
+            order_no = result[0][1] + 1
+        else:
+            # Reset the order number if it exceeds 100
+            order_no = 1
 
 def order_finish():
     """Finish the order and display a message"""
@@ -57,29 +67,35 @@ def order_finish():
     with sqlite3.connect(DATABASE) as d_b:
         cursor = d_b.cursor()
         # Insert the order into the orders table
-        qrl = f"""INSERT INTO [order] VALUES ({staff_id}, {total_price}, 
-        {order_id}, {order_no});"""
+        qrl = f"""INSERT INTO [order] VALUES ({order_id}, {total_price}, 
+        {order_no}, {staff_id});"""
         cursor.execute(qrl)
         d_b.commit()
     # Reset the order details
     order_id_no_make()
     messagebox.showinfo("Order Finished", "Your order has been finished.")
 
-def total_price_update(lb_total_price):
+def total_price_update(tbox_total_price):
     """update the total price text box"""
     global total_price
-    lb_total_price.config(state='normal')
-    lb_total_price.delete('1.0', tk.END)
-    lb_total_price.insert(tk.END,total_price)
-    lb_total_price.config(state='disabled')
+    tbox_total_price.config(state='normal')
+    tbox_total_price.delete('1.0', tk.END)
+    tbox_total_price.insert(tk.END,total_price)
+    tbox_total_price.config(state='disabled')
 
-def item_price_update(lb_item_price):
+def item_price_update(tbox_item_price):
     """update the total price text box"""
     global deplay_list
-    lb_item_price.config(state='normal')
-    lb_item_price.delete('1.0', tk.END)
-    lb_item_price.insert(tk.END, deplay_list[2])
-    lb_item_price.config(state='disabled')
+    tbox_item_price.config(state='normal')
+    tbox_item_price.delete('1.0', tk.END)
+    tbox_item_price.insert(tk.END, deplay_list[0][2])
+    tbox_item_price.config(state='disabled')
+
+def add_order_list():
+    """update the order list"""
+    global order_list, deplay_list
+    # add the product to the order list
+    order_list.append(deplay_list[0])
 
 def button_text(row,column):
     """Get the text for the keypad buttons"""
@@ -105,7 +121,7 @@ def on_button_click(row, column, window):
     """Handle button click events"""
     messagebox.showinfo("Button Clicked", f"Row {row}, Column {column}")
 
-def on_item_grid_click(row, column, lb_total_price, lb_item_price):
+def on_item_grid_click(row, column, tbox_total_price, tbox_item_price):
     """Handle item grid button click events"""
     global deplay_list
     # get the product details from the database
@@ -119,10 +135,10 @@ def on_item_grid_click(row, column, lb_total_price, lb_item_price):
         deplay_list = result
     
     # update the display bar
-    total_price_update(lb_total_price)
-    item_price_update(lb_item_price)
+    total_price_update(tbox_total_price)
+    item_price_update(tbox_item_price)
 
-def key_pad(window):
+def key_pad(window, tbox_total_price, tbox_item_price):
     """display the keypad"""
     global bg_color, label_color, white
     rframe = tk.Frame(master=window, bg=bg_color)
@@ -142,7 +158,7 @@ def key_pad(window):
                               cursor="hand2", command=order_finish)
     button_finish.place(x=640, y=570, width=350, height=30)
 
-def item_grid(window, lb_total_price, lb_item_price):
+def item_grid(window, tbox_total_price, tbox_item_price):
     """display the keypad"""
     global bg_color, label_color, white
     dframe = tk.Frame(master=window, bg=bg_color)
@@ -155,9 +171,10 @@ def item_grid(window, lb_total_price, lb_item_price):
             text = item_text(i,j)
             button = tk.Button(master=frame, text=text, cursor="hand2", 
                                width=13, height=4, command=lambda i=i,j=j,
-                               lb_total_price=lb_total_price, 
-                               lb_item_price=lb_item_price: on_item_grid_click(
-                                i, j, lb_total_price, lb_item_price))
+                               tbox_total_price=tbox_total_price, 
+                               tbox_item_price=tbox_item_price: 
+                               on_item_grid_click(i, j, tbox_total_price, 
+                                                  tbox_item_price))
             button.pack()
 
 def main_menu():
@@ -192,10 +209,7 @@ def sub_menu():
         window.geometry("1000x650")
         window.config(bg=bg_color)
         window.resizable(width=False, height=False)
-
-        # Create the right menu frame
-        key_pad(window, lb_total_price, lb_item_price)
-
+        
         # create the left menu frame
         lframe = tk.Frame(master=window,bg="white")
         lframe.place(x=15,y=15,width=600,height=620)
@@ -219,7 +233,10 @@ def sub_menu():
         l_desplay_bar = tk.Text(master=lframe, width=45, height=2, 
                                 state="disabled", borderwidth=2, bg=bg_color)
         
-        item_grid(window, lb_total_price, lb_item_price)
+        # Create the right menu frame
+        key_pad(window, tbox_total_price, tbox_item_price)
+
+        item_grid(window, tbox_total_price, tbox_item_price)
         
         # place all the widgets in the frame
         lb_total_price.place(x=50,y=15)
@@ -306,10 +323,10 @@ while __name__ == "__main__":
         frame.place(x=200, y=25, width=600, height=600)
 
         # show password button
-        show_password = tk.Button(frame, text="Show Password", 
+        show_password_b = tk.Button(frame, text="Show Password", 
                                   font=('Arial', 12), bg=white, 
                                   command=show_password)
-        show_password.place(x=350, y=300)
+        show_password_b.place(x=350, y=300)
 
         # Create the login feilds
         username_label = tk.Label(frame, text="Username", 
@@ -338,6 +355,10 @@ while __name__ == "__main__":
     while True:
         if exit == True:
             break
+
+        # generate a new order ID and order number
+        order_id_no_make()
+
         # call the menu changer
         menu_chager()
 
