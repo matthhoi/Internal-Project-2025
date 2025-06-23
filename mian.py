@@ -18,6 +18,7 @@ white = "#ffffff"
 exit = False
 login = False
 is_visable = "*"
+Show_Password = "Show Password"
 menu = 2
 staff_id = 0
 text_color = "black"
@@ -77,34 +78,40 @@ def order_finish():
     messagebox.showinfo("Order Finished", "Your order has been finished.")
 
 def update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no):
+tbox_order_no, R_desplay_bar):
     """Update the order details"""
     # update the total price text box
     global total_price
     tbox_total_price.config(state='normal')
     tbox_total_price.delete('1.0', tk.END)
-    tbox_total_price.insert(tk.END,total_price)
+    tbox_total_price.insert(tk.END, f"${total_price}")
     tbox_total_price.config(state='disabled')
 
     # update the item price text box
     global deplay_list
     tbox_item_price.config(state='normal')
     tbox_item_price.delete('1.0', tk.END)
-    tbox_item_price.insert(tk.END, deplay_list[0][2])
+    tbox_item_price.insert(tk.END, f"${deplay_list[0][2]}")
     tbox_item_price.config(state='disabled')
 
     # update the display bar text box
     l_desplay_bar.config(state='normal')
     l_desplay_bar.delete('1.0', tk.END)
-    l_desplay_bar.insert(tk.END, f"{deplay_list[0][1]}")
+    l_desplay_bar.insert(tk.END, deplay_list[0][1])
     l_desplay_bar.config(state='disabled')
 
     global order_no
     # update the order number text box
     tbox_order_no.config(state='normal')
     tbox_order_no.delete('1.0', tk.END)
-    tbox_order_no.insert(tk.END, f"{order_no}")
+    tbox_order_no.insert(tk.END, order_no)
     tbox_order_no.config(state='disabled')
+
+    # update the right desplay text box
+    R_desplay_bar.config(state='normal')
+    R_desplay_bar.delete('1.0', tk.END)
+    R_desplay_bar.insert(tk.END, "")
+    R_desplay_bar.config(state='disabled')
 
 def add_order_list():
     """update the order list"""
@@ -132,8 +139,19 @@ def item_text(row,column):
         result = cursor.fetchall()
     return result[0][0]
 
+def change_price(new_price, window, tbox_total_price, tbox_item_price, 
+l_desplay_bar, tbox_order_no, R_desplay_bar):
+    """Change the price of the product"""
+    global deplay_list
+    decamial = new_price / (10**2)
+    deplay_list = [(deplay_list[0][0], deplay_list[0][1], decamial, 
+    deplay_list[0][3], deplay_list[0][4])]
+    update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+    tbox_order_no, R_desplay_bar)
+    window.destroy()
+
 def on_button_click(row, column, window, tbox_total_price, tbox_item_price, 
-l_desplay_bar, tbox_order_no):
+l_desplay_bar, tbox_order_no, R_desplay_bar):
     """Handle button click events"""
     global deplay_list
     # get the button details from the database
@@ -147,10 +165,67 @@ l_desplay_bar, tbox_order_no):
         # clear the display bar
         deplay_list = [(0, "", 0.0, "product_catogory", 0)]
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no)
+        tbox_order_no, R_desplay_bar)
+    elif text == "PLU":
+        # get the product details from the database
+        plu = R_desplay_bar.get("1.0", tk.END).strip()
+        # get the product details from the database
+        try:
+            with sqlite3.connect(DATABASE) as d_b:
+                cursor = d_b.cursor()
+                qrl = f"""SELECT product_name, product_price, product_catogory 
+                FROM products WHERE product_plu = {plu};"""
+                cursor.execute(qrl)
+                result = cursor.fetchall()
+                deplay_list = [(plu, result[0][0], result[0][1], result[0][2], 
+                1)]
+        except:
+            error_message("ptoduct not found")
+        # update the display bar
+        update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+            tbox_order_no, R_desplay_bar)
+    elif text == "Add to order":
+        # add the product to the order list
+        add_order_list()
+        # update the total price
+        global total_price
+        total_price += deplay_list[0][2]
+        total_price = round(total_price, 2)
+        # update the display bar
+        deplay_list = [(0, "", 0.0, "product_catogory", 0)]
+        update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+        tbox_order_no, R_desplay_bar)
+    elif text == "Sign out":
+        # sign out the user
+        global exit
+        window.destroy()
+        sign_in()
+    elif text == "Change price":
+        # change the price of the product
+        price_window = tk.Tk()
+        price_window.title("Change Price Window")
+        price_window.geometry("150x150")
+        price_window.config(bg=bg_color)
+        price_window.resizable(width=False, height=False)
+
+        price_label = tk.Label(master=price_window, text="New Price", 
+        bg=bg_color, fg=text_color, font=('Arial', 12, "bold"))
+        price_label.pack(pady=10)
+
+        validate_command = price_window.register(lambda p: p.isdigit())
+        price_entry = tk.Entry(master=price_window, width=10, validate="key", 
+        validatecommand=(validate_command, '%P'))
+        price_entry.pack(pady=5)
+
+        change_button = tk.Button(master=price_window, text="Change", 
+        cursor="hand2", command=lambda: change_price(float(price_entry.get()), 
+        price_window, tbox_total_price, tbox_item_price, l_desplay_bar, 
+        tbox_order_no, R_desplay_bar))
+        change_button.pack(pady=5)
+        price_window.mainloop()
 
 def on_item_grid_click(row, column, tbox_total_price, tbox_item_price, 
-l_desplay_bar, tbox_order_no):
+l_desplay_bar, tbox_order_no, R_desplay_bar):
     """Handle item grid button click events"""
     global deplay_list
     # get the product details from the database
@@ -162,14 +237,14 @@ l_desplay_bar, tbox_order_no):
         cursor.execute(qrl)
         result = cursor.fetchall()
         deplay_list = [(result[0][0], result[0][1], result[0][2], result[0][3], 
-        0)]
+        1)]
     
     # update the display bar
     update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-    tbox_order_no)
+    tbox_order_no, R_desplay_bar)
 
 def key_pad(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no):
+tbox_order_no, R_desplay_bar):
     """display the keypad"""
     global bg_color, label_color, white
     rframe = tk.Frame(master=window, bg=bg_color)
@@ -186,17 +261,18 @@ tbox_order_no):
                                window=window, tbox_total_price=tbox_total_price, 
                                tbox_item_price=tbox_item_price, 
                                l_desplay_bar=l_desplay_bar, 
-                               tbox_order_no=tbox_order_no: 
+                               tbox_order_no=tbox_order_no, 
+                               R_desplay_bar=R_desplay_bar: 
                                on_button_click(i, j, window, tbox_total_price, 
                                                tbox_item_price, l_desplay_bar, 
-                                               tbox_order_no))
+                                               tbox_order_no, R_desplay_bar))
             button.pack()
     button_finish = tk.Button(master=window, text="Finish order", 
                               cursor="hand2", command=order_finish)
     button_finish.place(x=640, y=570, width=350, height=30)
 
 def item_grid(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no):
+tbox_order_no, R_desplay_bar):
     """display the keypad"""
     global bg_color, label_color, white
     dframe = tk.Frame(master=window, bg=bg_color)
@@ -212,10 +288,12 @@ tbox_order_no):
                                tbox_total_price=tbox_total_price, 
                                tbox_item_price=tbox_item_price, 
                                l_desplay_bar=l_desplay_bar, 
-                               tbox_order_no=tbox_order_no: 
+                               tbox_order_no=tbox_order_no, 
+                               R_desplay_bar=R_desplay_bar: 
                                on_item_grid_click(i, j, tbox_total_price, 
                                                   tbox_item_price, 
-                                                  l_desplay_bar, tbox_order_no))
+                                                  l_desplay_bar, tbox_order_no, 
+                                                  R_desplay_bar))
             button.pack()
 
 def main_menu():
@@ -254,7 +332,7 @@ def main_menu():
         
         # Create the right menu frame
         key_pad(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no)
+        tbox_order_no, R_desplay_bar)
         
         # place all the widgets in the frame
         lb_total_price.place(x=50,y=15)
@@ -268,7 +346,7 @@ def main_menu():
 
         # update the order details
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no)
+        tbox_order_no, R_desplay_bar)
 
         window.mainloop()
 
@@ -313,13 +391,13 @@ def sub_menu():
                                 state="disabled", borderwidth=2, bg=bg_color)
         l_desplay_bar = tk.Text(master=lframe, width=45, height=2, 
                                 state="disabled", borderwidth=2, bg=bg_color)
-        
+
         # Create the right menu frame
         key_pad(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no)
+        tbox_order_no, R_desplay_bar)
 
         item_grid(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no)
+        tbox_order_no, R_desplay_bar)
         
         # place all the widgets in the frame
         lb_total_price.place(x=50,y=15)
@@ -333,7 +411,7 @@ def sub_menu():
 
         # update the order details
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no)
+        tbox_order_no, R_desplay_bar)
 
         window.mainloop()
 
@@ -342,20 +420,20 @@ def sub_menu():
             exit = messagebox.askokcancel("Exit", 
             "Are you sure you want to exit?")
         else:
-            # exit the program if the user clicks the exit button
+            # exit the program if the user has alredy clicked the exit button
             break
 
 def show_password(password_entry):
     """show the password"""
-    global is_visable
+    global is_visable, Show_Password
     if is_visable == "*":
         is_visable = ""
         password_entry.config(show=is_visable)
-        show_password_b.config(text="Hide Password")
+        Show_Password = "Hide Password"
     else:
         is_visable = "*"
         password_entry.config(show=is_visable)
-        show_password_b.config(text="Show Password")
+        Show_Password = "Show Password"
 
 def menu_chager():
     """Change the menu"""
@@ -369,15 +447,15 @@ def menu_chager():
         menu = 1
         sub_menu()
 
-def cheek_login():
+def cheek_login(username_entry, password_entry, window):
     """Check if the username and password are correct"""
     global login, staff_id
     with sqlite3.connect(DATABASE) as d_b:
         
         # Check if the username and password are correct
         cursor = d_b.cursor()
-        qrl = f"""SELECT name FROM staff WHERE username = "{username_entry.get()}" 
-        AND password = "{password_entry.get()}";"""
+        qrl = f"""SELECT name FROM staff WHERE username = 
+        "{username_entry.get()}" AND password = "{password_entry.get()}";"""
         cursor.execute(qrl)
         results = cursor.fetchall()
         if not results == []:
@@ -399,8 +477,10 @@ def cheek_login():
             username_entry.delete(0, tk.END)
             password_entry.delete(0, tk.END)
 
-while __name__ == "__main__":
-    """Create the login window"""
+def sign_in():
+    """Sign in the user"""
+    global login, exit, is_visable
+    login = False
     # login window
     while login == False:
         # Create the login window
@@ -427,16 +507,20 @@ while __name__ == "__main__":
         password_label.place(x=50, y=200)
 
         # show password button
-        show_password_b = tk.Button(frame, text="Show Password", 
+        show_password_b = tk.Button(frame, text=Show_Password, cursor="hand2", 
                                   font=('Arial', 12), bg=white, 
                                   command=lambda password_entry=password_entry: 
                                   show_password(password_entry))
         show_password_b.place(x=350, y=300)
 
         # Create the login button
-        login_button = tk.Button(frame, text="login", 
+        login_button = tk.Button(frame, text="sign in", cursor="hand2",
                                  font=('Arial', 15,"bold"), bg=white, 
-                                 width=10, height=2, command=cheek_login)
+                                 width=10, height=2, command=lambda 
+                                 username_entry=username_entry, 
+                                 password_entry=password_entry, window=window:
+                                 cheek_login(username_entry, password_entry, 
+                                             window))
         login_button.place(x=225, y=400)
         window.mainloop()
 
@@ -445,16 +529,20 @@ while __name__ == "__main__":
             exit = messagebox.askokcancel("Exit", 
             "Are you sure you want to exit?")
             login = exit
-    
+        
     while True:
         if exit == True:
             break
-
+        global order_id, order_no
         # generate a new order ID and order number
         order_id, order_no = order_id_no_make()
-
 
         # call the menu changer
         menu_chager()
 
+while __name__ == "__main__":
+    """run the program"""
+    # start the login process
+    sign_in()
+    
     break
