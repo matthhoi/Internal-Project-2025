@@ -150,6 +150,96 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
     tbox_order_no, R_desplay_bar)
     window.destroy()
 
+def select_product():
+    """Let the user select a product from """
+    global deplay_list
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        # get the product details from the database
+        qrl = """SELECT product_plu, product_name, product_price, 
+        product_catogory FROM products;"""
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+        deplay_list = [(result[0][0], result[0][1], result[0][2], 
+        result[0][3], 1)]
+    return deplay_list
+
+def exit_select_window(select_window, selected_product, tbox_total_price, 
+tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
+    """Exit the selection window and update the display bar with the selected product"""
+    global deplay_list
+    product = selected_product.get()
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        # search for the product in the database
+        qrl = f"""SELECT product_plu, product_name, product_price, 
+        product_catogory FROM products WHERE search_name == 
+        '{product.upper()}';"""
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+        if len(result) == 1:
+            # if the product is found, update the display bar
+            deplay_list = [(result[0][0], result[0][1], result[0][2], 
+            result[0][3], 1)]
+            update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+            tbox_order_no, R_desplay_bar)
+        else:
+            error_message("A error has occured. Please try again.")
+            slecetion_window(result, tbox_total_price, tbox_item_price, 
+                             l_desplay_bar, tbox_order_no, R_desplay_bar)
+    select_window.destroy()
+
+def slecetion_window(result, tbox_total_price, tbox_item_price, l_desplay_bar, 
+tbox_order_no, R_desplay_bar):
+    """Create a selection window to select a product"""
+    global deplay_list
+    # create the selection window
+    select_window = tk.Tk()
+    select_window.title("Select Product")
+    select_window.geometry("500x150")
+    select_window.config(bg=bg_color)
+    select_window.resizable(width=False, height=False)
+    # create the dropdown to display the products and select one
+    selected_product = tk.StringVar(select_window, result[0][1])
+    product_names = [item[1] for item in result]
+    product_dropdown = tk.OptionMenu(select_window, selected_product, 
+    *product_names)
+    product_dropdown.pack(pady=10)
+    # create the select button
+    select_button = tk.Button(select_window, text="Select", cursor="hand2", 
+                              command=lambda: exit_select_window(select_window, 
+                              selected_product, tbox_total_price, 
+                              tbox_item_price, l_desplay_bar, tbox_order_no, 
+                              R_desplay_bar))
+    select_button.pack(pady=5)
+    
+def search_product(search_entry, search_window, tbox_total_price, 
+tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
+    """Search for a product by name"""
+    global deplay_list
+    with sqlite3.connect(DATABASE) as d_b:
+        cursor = d_b.cursor()
+        # search for the product in the database
+        qrl = f"""SELECT product_plu, product_name, product_price, 
+        product_catogory FROM products WHERE search_name LIKE 
+        '%{search_entry.get().upper()}%';"""
+        cursor.execute(qrl)
+        result = cursor.fetchall()
+        if len(result) > 1:
+            slecetion_window(result, tbox_total_price, tbox_item_price, 
+                             l_desplay_bar, tbox_order_no, R_desplay_bar)
+        elif len(result) > 10:
+            error_message("search to brawd. Please be more specific.")
+        elif len(result) == 1:
+            # if the product is found, update the display bar
+            deplay_list = [(result[0][0], result[0][1], result[0][2], 
+            result[0][3], 1)]
+            update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+            tbox_order_no, R_desplay_bar)
+        else:
+            error_message("No products found with that name.")
+    search_window.destroy()
+
 def on_button_click(row, column, window, tbox_total_price, tbox_item_price, 
 l_desplay_bar, tbox_order_no, R_desplay_bar):
     """Handle button click events"""
@@ -218,11 +308,32 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         price_entry.pack(pady=5)
 
         change_button = tk.Button(master=price_window, text="Change", 
-        cursor="hand2", command=lambda: change_price(float(price_entry.get()), 
-        price_window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar))
+                                  cursor="hand2", command=lambda: 
+                                  change_price(float(price_entry.get()), 
+                                               price_window, tbox_total_price, 
+                                               tbox_item_price, l_desplay_bar, 
+                                               tbox_order_no, R_desplay_bar))
         change_button.pack(pady=5)
         price_window.mainloop()
+    elif text == "search":
+        # seaerch for a product by Name
+        search_window = tk.Tk()
+        search_window.title("Search Product")
+        search_window.geometry("300x150")
+        search_window.config(bg=bg_color)
+        search_window.resizable(width=False, height=False)
+        search_label = tk.Label(master=search_window, text="Search by Name", 
+        bg=bg_color, fg=text_color, font=('Arial', 12, "bold"))
+        search_label.pack(pady=10)
+        search_entry = tk.Entry(master=search_window, width=30)
+        search_entry.pack(pady=5)
+        search_button = tk.Button(master=search_window, text="Search", 
+                                  cursor="hand2", command=lambda: 
+                                  search_product(search_entry, search_window, 
+                                                 tbox_total_price, 
+                                                 tbox_item_price, l_desplay_bar, 
+                                                 tbox_order_no, R_desplay_bar))
+        search_button.pack(pady=5)
 
 def on_item_grid_click(row, column, tbox_total_price, tbox_item_price, 
 l_desplay_bar, tbox_order_no, R_desplay_bar):
