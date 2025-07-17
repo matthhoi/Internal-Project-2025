@@ -25,7 +25,7 @@ text_color = "black"
 order_id = 0
 total_price = 0.0
 order_no = 0
-deplay_list = [(0, "", 0.0, "", 0)]
+deplay_list = [(0, "", 0.0, "", 1)]
 order_list = []
 
 # functions
@@ -91,7 +91,7 @@ tbox_order_no, R_desplay_bar):
     global deplay_list
     tbox_item_price.config(state='normal')
     tbox_item_price.delete('1.0', tk.END)
-    tbox_item_price.insert(tk.END, f"${deplay_list[0][2]}")
+    tbox_item_price.insert(tk.END, f"${deplay_list[0][2] * deplay_list[0][4]}")
     tbox_item_price.config(state='disabled')
 
     # update the display bar text box
@@ -161,7 +161,7 @@ def select_product():
         cursor.execute(qrl)
         result = cursor.fetchall()
         deplay_list = [(result[0][0], result[0][1], result[0][2], 
-        result[0][3], 1)]
+        result[0][3], result[0][4])]
     return deplay_list
 
 def exit_select_window(select_window, selected_product, tbox_total_price, 
@@ -180,7 +180,7 @@ tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
         if len(result) == 1:
             # if the product is found, update the display bar
             deplay_list = [(result[0][0], result[0][1], result[0][2], 
-            result[0][3], 1)]
+            result[0][3], result[0][4])]
             update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
             tbox_order_no, R_desplay_bar)
         else:
@@ -240,6 +240,19 @@ tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
             error_message("No products found with that name.")
     search_window.destroy()
 
+def times_price(item_amount, window, tbox_total_price, tbox_item_price, 
+l_desplay_bar, tbox_order_no, R_desplay_bar):
+    """Change the price of the product"""
+    global deplay_list
+    if item_amount <= 1:
+        error_message("Please enter a valid amount.")
+    else:
+        deplay_list = [(deplay_list[0][0], deplay_list[0][1], deplay_list[0][2], 
+        deplay_list[0][3], item_amount)]
+        update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+        tbox_order_no, R_desplay_bar)
+    window.destroy()
+
 def on_button_click(row, column, window, tbox_total_price, tbox_item_price, 
 l_desplay_bar, tbox_order_no, R_desplay_bar):
     """Handle button click events"""
@@ -253,7 +266,7 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         menu_chager()
     elif text == "c":
         # clear the display bar
-        deplay_list = [(0, "", 0.0, "product_catogory", 0)]
+        deplay_list = [(0, "", 0.0, "product_catogory", 1)]
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
         tbox_order_no, R_desplay_bar)
     elif text == "PLU":
@@ -279,10 +292,10 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         add_order_list()
         # update the total price
         global total_price
-        total_price += deplay_list[0][2]
+        total_price += (deplay_list[0][2] * deplay_list[0][4])
         total_price = round(total_price, 2)
         # update the display bar
-        deplay_list = [(0, "", 0.0, "product_catogory", 0)]
+        deplay_list = [(0, "", 0.0, "product_catogory", 1)]
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
         tbox_order_no, R_desplay_bar)
     elif text == "Sign out":
@@ -334,6 +347,39 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
                                                  tbox_item_price, l_desplay_bar, 
                                                  tbox_order_no, R_desplay_bar))
         search_button.pack(pady=5)
+    elif text == "x":
+        # change the price of the product
+        times_window = tk.Tk()
+        times_window.title("Change times Window")
+        times_window.geometry("150x150")
+        times_window.config(bg=bg_color)
+        times_window.resizable(width=False, height=False)
+
+        times_label = tk.Label(master=times_window, text="how meany items", 
+        bg=bg_color, fg=text_color, font=('Arial', 12, "bold"))
+        times_label.pack(pady=10)
+
+        validate_command = times_window.register(lambda p: p.isdigit())
+        times_entry = tk.Entry(master=times_window, width=10, validate="key", 
+        validatecommand=(validate_command, '%P'))
+        times_entry.pack(pady=5)
+
+        change_button = tk.Button(master=times_window, text="Change", 
+                                  cursor="hand2", command=lambda: 
+                                  times_price(int(times_entry.get()), 
+                                               times_window, tbox_total_price, 
+                                               tbox_item_price, l_desplay_bar, 
+                                               tbox_order_no, R_desplay_bar))
+        change_button.pack(pady=5)
+        times_window.mainloop()
+    elif text.isdigit():
+        # if the button is a digit, add it to the display bar
+        current_text = R_desplay_bar.get("1.0", tk.END).strip()
+        new_text = current_text + text
+        R_desplay_bar.config(state='normal')
+        R_desplay_bar.delete('1.0', tk.END)
+        R_desplay_bar.insert(tk.END, new_text)
+        R_desplay_bar.config(state='disabled')
 
 def on_item_grid_click(row, column, tbox_total_price, tbox_item_price, 
 l_desplay_bar, tbox_order_no, R_desplay_bar):
