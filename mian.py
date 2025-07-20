@@ -7,6 +7,7 @@ By: Matt Smith                                                     08/05/2025"""
 import tkinter as tk
 from tkinter import messagebox
 import sqlite3
+from datetime import date
 
 # constants
 DATABASE = "database-L2DTSD-2025.db"
@@ -21,6 +22,7 @@ is_visable = "*"
 Show_Password = "Show Password"
 menu = 2
 staff_id = 0
+staff_name = ""
 text_color = "black"
 order_id = 0
 total_price = 0.0
@@ -43,38 +45,75 @@ def order_id_no_make():
         cursor.execute(qrl)
         result = cursor.fetchall()
         
-        # Increment the last order ID
-        if result[0][0] is None:
-            # Start from 1 if no orders exist
-            order_id = 1
+        if result[0][0] is None or result[0][0] <= order_id:
+            # Increment the last order ID
+            order_id += 1
+
+            # Increment the last order number
+            if order_no < 100:
+                # Increment the last order no
+                order_no += 1
+            else:
+                # Reset the order number if it exceeds 100
+                order_no = 1
         else:
             # Increment the last order ID
-            order_id = result[0][0] + 1
+            if result[0][0] is None:
+                # Start from 1 if no orders exist
+                order_id = 1
+            else:
+                # Increment the last order ID
+                order_id = result[0][0] + 1
 
-        # Increment the last order number
-        if result[0][1] is None:
-            # Start from 1 if no orders exist
-            order_no = 1
-        elif result[0][1] < 100:
-            # Increment the last order no
-            order_no = result[0][1] + 1
-        else:
-            # Reset the order number if it exceeds 100
-            order_no = 1
-        return order_id, order_no
+            # Increment the last order number
+            if result[0][1] is None:
+                # Start from 1 if no orders exist
+                order_no = 1
+            elif result[0][1] < 100:
+                # Increment the last order no
+                order_no = result[0][1] + 1
+            else:
+                # Reset the order number if it exceeds 100
+                order_no = 1
 
-def order_finish():
+def order_finish(tbox_total_price, tbox_item_price, l_desplay_bar, 
+                 tbox_order_no, R_desplay_bar):
     """Finish the order and display a message"""
-    global staff_id, order_id, total_price, order_no
+    global staff_id, order_id, total_price, order_no, order_list, staff_name, deplay_list
+    today = date.today()
+    receipt = ("-------------------- RECEIPT --------------------\n"
+               f"{'Item':<20} {'Price':>10} {'Qty':>5} {'Subtotal':>10}\n------"
+               "-------------------------------------------\n")
+    for item in order_list:
+        receipt += (f"{item[1]:<20} {item[2]:>10.2f} {item[4]:>5} "
+                    f"{(item[2]*item[4]):>10.2f}\n")
+    if today.month < 10:
+        # Format the date to ensure two digits for month
+        today_month = f"0{today.month}"
+    else:
+        today_month = today.month
+    receipt += ("-------------------------------------------------\n"
+                f"{'Total:':<35} ${total_price:>10.2f}\n------------------------"
+                f"-------------------------\n{'Order id':<6} "
+                f"{'Order number':>21} {'Name':>6} {'Date':>8}\n---------------"
+                f"----------------------------------\n{order_id:<23} "
+                f"{order_no:<6} {staff_name:<7}{today.day}/"
+                f"{today_month}/{today.year}\n--------------------------"
+                "-----------------------")
     with sqlite3.connect(DATABASE) as d_b:
         cursor = d_b.cursor()
-        # Insert the order into the orders table
-        qrl = f"""INSERT INTO [order] VALUES ({order_id}, {total_price}, 
-        {order_no}, {staff_id});"""
-        cursor.execute(qrl)
+        # Use a parameterized query to insert the order into the orders table
+        qrl = """INSERT INTO [order] (order_id, total_price, order_num, 
+        staff_id, order_receipt) VALUES (?, ?, ?, ?, ?);"""
+        cursor.execute(qrl, (order_id, total_price, order_no, staff_id, receipt))
         d_b.commit()
     # Reset the order details
     order_id_no_make()
+    deplay_list = [(0, "", 0.0, "", 1)]
+    order_list = []
+    total_price = 0.0
+    update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+                   tbox_order_no, R_desplay_bar)
     messagebox.showinfo("Order Finished", "Your order has been finished.")
 
 def update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
@@ -425,7 +464,9 @@ tbox_order_no, R_desplay_bar):
                                                tbox_order_no, R_desplay_bar))
             button.pack()
     button_finish = tk.Button(master=window, text="Finish order", 
-                              cursor="hand2", command=order_finish)
+                              cursor="hand2", command=lambda:order_finish(
+                                  tbox_total_price, tbox_item_price, 
+                                  l_desplay_bar, tbox_order_no, R_desplay_bar))
     button_finish.place(x=640, y=570, width=350, height=30)
 
 def item_grid(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
@@ -606,7 +647,8 @@ def menu_chager():
 
 def cheek_login(username_entry, password_entry, window):
     """Check if the username and password are correct"""
-    global login, staff_id
+    global login, staff_id, staff_name
+    # connect to the database
     with sqlite3.connect(DATABASE) as d_b:
         
         # Check if the username and password are correct
@@ -620,11 +662,12 @@ def cheek_login(username_entry, password_entry, window):
                                 f"Login successful! \n Welcome {results[0][0]}")
             
             # get the staff id
-            qrl = f"""SELECT staff_id FROM staff WHERE username = 
+            qrl = f"""SELECT staff_id, name FROM staff WHERE username = 
             "{username_entry.get()}" AND password = "{password_entry.get()}";"""
             cursor.execute(qrl)
             results = cursor.fetchall()
             staff_id = results[0][0]
+            staff_name = results[0][1]
 
             # close the login window
             window.destroy()
@@ -692,7 +735,7 @@ def sign_in():
             break
         global order_id, order_no
         # generate a new order ID and order number
-        order_id, order_no = order_id_no_make()
+        order_id_no_make()
 
         # call the menu changer
         menu_chager()
