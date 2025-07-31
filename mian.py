@@ -1,7 +1,8 @@
-"""This is a simple Python program that will make staff at a takeaway place be 
-able to make orders with ese and be able to see the order number, item price and
-total price.
-By: Matt Smith                                                     08/05/2025"""
+"""This is a Python program that will be for staff in a takeaway shop. It will 
+connect with a database and allow staff to take orders, search for products, 
+whilst also displaying the order details and total price and generating a 
+receipt for the customer.
+By: Matt Smith                                                     1/08/2025"""
 
 # import modules
 import tkinter as tk
@@ -29,6 +30,7 @@ total_price = 0.0
 order_no = 0
 deplay_list = [(0, "", 0.0, "", 1)]
 order_list = []
+loop = False
 
 # functions
 def error_message(msg):
@@ -77,15 +79,21 @@ def order_id_no_make():
                 order_no = 1
 
 def order_finish(tbox_total_price, tbox_item_price, l_desplay_bar, 
-                 tbox_order_no, R_desplay_bar):
+                 tbox_order_no, R_desplay_bar, window_main):
     """Finish the order and display a message"""
-    global staff_id, order_id, total_price, order_no, order_list, staff_name, deplay_list
+    global staff_id, order_id, total_price, order_no, order_list
+    global staff_name, deplay_list
     today = date.today()
     receipt = ("-------------------- RECEIPT --------------------\n"
                f"{'Item':<20} {'Price':>10} {'Qty':>5} {'Subtotal':>10}\n------"
                "-------------------------------------------\n")
     for item in order_list:
-        receipt += (f"{item[1]:<20} {item[2]:>10.2f} {item[4]:>5} "
+        if len(item[1]) > 20:
+            # If the item name is too long, cut it to 20 characters
+            item_name = item[1][:20]
+        else:
+            item_name = item[1]
+        receipt += (f"{item_name:<20} {item[2]:>10.2f} {item[4]:>5} "
                     f"{(item[2]*item[4]):>10.2f}\n")
     if today.month < 10:
         # Format the date to ensure two digits for month
@@ -100,30 +108,38 @@ def order_finish(tbox_total_price, tbox_item_price, l_desplay_bar,
                 f"{order_no:<6} {staff_name:<7}{today.day}/"
                 f"{today_month}/{today.year}\n--------------------------"
                 "-----------------------")
-    with sqlite3.connect(DATABASE) as d_b:
-        cursor = d_b.cursor()
-        # Use a parameterized query to insert the order into the orders table
-        qrl = """INSERT INTO [order] (order_id, total_price, order_num, 
-        staff_id, order_receipt) VALUES (?, ?, ?, ?, ?);"""
-        cursor.execute(qrl, (order_id, total_price, order_no, staff_id, receipt))
-        d_b.commit()
-    # Reset the order details
-    order_id_no_make()
-    deplay_list = [(0, "", 0.0, "", 1)]
-    order_list = []
-    total_price = 0.0
-    update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-                   tbox_order_no, R_desplay_bar)
-    messagebox.showinfo("Order Finished", "Your order has been finished.")
+    finish = messagebox.askokcancel("Contue", "Is this order correct?\nIf you "
+                                    "click 'OK' the order will be finished."
+                                    f"\n\n{receipt}")
+    if finish == True:
+        # finish the order and insert it into the database
+        with sqlite3.connect(DATABASE) as d_b:
+            cursor = d_b.cursor()
+            # Use a parameterized query to insert the order into the orders table
+            qrl = """INSERT INTO [order] (order_id, total_price, order_num, 
+            staff_id, order_receipt) VALUES (?, ?, ?, ?, ?);"""
+            cursor.execute(qrl, (order_id, total_price, order_no, staff_id, 
+                                 receipt))
+            d_b.commit()
+        # Reset the order details
+        order_id_no_make()
+        deplay_list = [(0, "", 0.0, "", 1)]
+        order_list = []
+        total_price = 0.0
+        update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+                    tbox_order_no, R_desplay_bar, window_main)
+        messagebox.showinfo("Order Finished", "Your order has been finished.")
 
 def update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no, R_desplay_bar):
+tbox_order_no, R_desplay_bar, window_main):
     """Update the order details"""
     # update the total price text box
-    global total_price
+    total_price = 0.0
+    for i in order_list:
+        total_price += order_list[0][2] * order_list[0][4]
     tbox_total_price.config(state='normal')
     tbox_total_price.delete('1.0', tk.END)
-    tbox_total_price.insert(tk.END, f"${total_price}")
+    tbox_total_price.insert(tk.END, f"${round(total_price, 2)}")
     tbox_total_price.config(state='disabled')
 
     # update the item price text box
@@ -152,6 +168,13 @@ tbox_order_no, R_desplay_bar):
     R_desplay_bar.insert(tk.END, "")
     R_desplay_bar.config(state='disabled')
 
+    global menu, loop
+    if menu ==2 and loop == True:
+        # if the menu is 2 and loop is true, restart the main window
+        window_main.destroy()
+        main_menu()
+        loop = False
+
 def add_order_list():
     """update the order list"""
     global order_list, deplay_list
@@ -179,14 +202,14 @@ def item_text(row,column):
     return result[0][0]
 
 def change_price(new_price, window, tbox_total_price, tbox_item_price, 
-l_desplay_bar, tbox_order_no, R_desplay_bar):
+l_desplay_bar, tbox_order_no, R_desplay_bar, window_main):
     """Change the price of the product"""
     global deplay_list
     decamial = new_price / (10**2)
     deplay_list = [(deplay_list[0][0], deplay_list[0][1], decamial, 
     deplay_list[0][3], deplay_list[0][4])]
     update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-    tbox_order_no, R_desplay_bar)
+    tbox_order_no, R_desplay_bar, window_main)
     window.destroy()
 
 def select_product():
@@ -204,7 +227,7 @@ def select_product():
     return deplay_list
 
 def exit_select_window(select_window, selected_product, tbox_total_price, 
-tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
+tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar, window_main):
     """Exit the selection window and update the display bar with the selected product"""
     global deplay_list
     product = selected_product.get()
@@ -221,15 +244,13 @@ tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
             deplay_list = [(result[0][0], result[0][1], result[0][2], 
             result[0][3], result[0][4])]
             update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-            tbox_order_no, R_desplay_bar)
+            tbox_order_no, R_desplay_bar, window_main)
         else:
             error_message("A error has occured. Please try again.")
-            slecetion_window(result, tbox_total_price, tbox_item_price, 
-                             l_desplay_bar, tbox_order_no, R_desplay_bar)
     select_window.destroy()
 
 def slecetion_window(result, tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no, R_desplay_bar):
+tbox_order_no, R_desplay_bar, window_main):
     """Create a selection window to select a product"""
     global deplay_list
     # create the selection window
@@ -249,11 +270,11 @@ tbox_order_no, R_desplay_bar):
                               command=lambda: exit_select_window(select_window, 
                               selected_product, tbox_total_price, 
                               tbox_item_price, l_desplay_bar, tbox_order_no, 
-                              R_desplay_bar))
+                              R_desplay_bar, window_main))
     select_button.pack(pady=5)
     
 def search_product(search_entry, search_window, tbox_total_price, 
-tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
+tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar, window_main):
     """Search for a product by name"""
     global deplay_list
     with sqlite3.connect(DATABASE) as d_b:
@@ -266,7 +287,8 @@ tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
         result = cursor.fetchall()
         if len(result) > 1:
             slecetion_window(result, tbox_total_price, tbox_item_price, 
-                             l_desplay_bar, tbox_order_no, R_desplay_bar)
+                             l_desplay_bar, tbox_order_no, R_desplay_bar, 
+                             window_main)
         elif len(result) > 10:
             error_message("search to brawd. Please be more specific.")
         elif len(result) == 1:
@@ -274,13 +296,13 @@ tbox_item_price, l_desplay_bar, tbox_order_no, R_desplay_bar):
             deplay_list = [(result[0][0], result[0][1], result[0][2], 
             result[0][3], 1)]
             update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-            tbox_order_no, R_desplay_bar)
+            tbox_order_no, R_desplay_bar, window_main)
         else:
             error_message("No products found with that name.")
     search_window.destroy()
 
 def times_price(item_amount, window, tbox_total_price, tbox_item_price, 
-l_desplay_bar, tbox_order_no, R_desplay_bar):
+l_desplay_bar, tbox_order_no, R_desplay_bar, window_main):
     """Change the price of the product"""
     global deplay_list
     if item_amount <= 1:
@@ -289,16 +311,15 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         deplay_list = [(deplay_list[0][0], deplay_list[0][1], deplay_list[0][2], 
         deplay_list[0][3], item_amount)]
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window_main)
     window.destroy()
 
-def on_button_click(row, column, window, tbox_total_price, tbox_item_price, 
-l_desplay_bar, tbox_order_no, R_desplay_bar):
+def on_button_click(i, j, window, tbox_total_price, tbox_item_price, 
+l_desplay_bar, tbox_order_no, R_desplay_bar, window_main):
     """Handle button click events"""
-    global deplay_list
+    global deplay_list, loop
     # get the button details from the database
-    text = button_text(row, column)
-
+    text = button_text(i, j)
     if text == "Menu":
         # change the menu
         window.destroy()
@@ -307,7 +328,7 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         # clear the display bar
         deplay_list = [(0, "", 0.0, "product_catogory", 1)]
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window_main)
     elif text == "PLU":
         # get the product details from the database
         plu = R_desplay_bar.get("1.0", tk.END).strip()
@@ -325,8 +346,12 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
             error_message("ptoduct not found")
         # update the display bar
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-            tbox_order_no, R_desplay_bar)
+            tbox_order_no, R_desplay_bar, window_main)
     elif text == "Add to order":
+        # check if a product is selected
+        if deplay_list[0][0] == 0:
+            error_message("Please select a product first.")
+            return
         # add the product to the order list
         add_order_list()
         # update the total price
@@ -335,8 +360,9 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         total_price = round(total_price, 2)
         # update the display bar
         deplay_list = [(0, "", 0.0, "product_catogory", 1)]
+        loop = True
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window_main)
     elif text == "Sign out":
         # sign out the user
         global exit
@@ -364,7 +390,8 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
                                   change_price(float(price_entry.get()), 
                                                price_window, tbox_total_price, 
                                                tbox_item_price, l_desplay_bar, 
-                                               tbox_order_no, R_desplay_bar))
+                                               tbox_order_no, R_desplay_bar, 
+                                               window_main))
         change_button.pack(pady=5)
         price_window.mainloop()
     elif text == "search":
@@ -384,7 +411,8 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
                                   search_product(search_entry, search_window, 
                                                  tbox_total_price, 
                                                  tbox_item_price, l_desplay_bar, 
-                                                 tbox_order_no, R_desplay_bar))
+                                                 tbox_order_no, R_desplay_bar, 
+                                                 window_main))
         search_button.pack(pady=5)
     elif text == "x":
         # change the price of the product
@@ -408,7 +436,8 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
                                   times_price(int(times_entry.get()), 
                                                times_window, tbox_total_price, 
                                                tbox_item_price, l_desplay_bar, 
-                                               tbox_order_no, R_desplay_bar))
+                                               tbox_order_no, R_desplay_bar, 
+                                               window_main))
         change_button.pack(pady=5)
         times_window.mainloop()
     elif text.isdigit():
@@ -421,7 +450,7 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
         R_desplay_bar.config(state='disabled')
 
 def on_item_grid_click(row, column, tbox_total_price, tbox_item_price, 
-l_desplay_bar, tbox_order_no, R_desplay_bar):
+l_desplay_bar, tbox_order_no, R_desplay_bar,window_main):
     """Handle item grid button click events"""
     global deplay_list
     # get the product details from the database
@@ -437,10 +466,10 @@ l_desplay_bar, tbox_order_no, R_desplay_bar):
     
     # update the display bar
     update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-    tbox_order_no, R_desplay_bar)
+    tbox_order_no, R_desplay_bar, window_main)
 
 def key_pad(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no, R_desplay_bar):
+tbox_order_no, R_desplay_bar, window_main):
     """display the keypad"""
     global bg_color, label_color, white
     rframe = tk.Frame(master=window, bg=bg_color)
@@ -461,16 +490,18 @@ tbox_order_no, R_desplay_bar):
                                R_desplay_bar=R_desplay_bar: 
                                on_button_click(i, j, window, tbox_total_price, 
                                                tbox_item_price, l_desplay_bar, 
-                                               tbox_order_no, R_desplay_bar))
+                                               tbox_order_no, R_desplay_bar, 
+                                               window_main))
             button.pack()
     button_finish = tk.Button(master=window, text="Finish order", 
                               cursor="hand2", command=lambda:order_finish(
                                   tbox_total_price, tbox_item_price, 
-                                  l_desplay_bar, tbox_order_no, R_desplay_bar))
+                                  l_desplay_bar, tbox_order_no, R_desplay_bar, 
+                                  window_main))
     button_finish.place(x=640, y=570, width=350, height=30)
 
 def item_grid(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-tbox_order_no, R_desplay_bar):
+tbox_order_no, R_desplay_bar, window_main):
     """display the keypad"""
     global bg_color, label_color, white
     dframe = tk.Frame(master=window, bg=bg_color)
@@ -487,11 +518,49 @@ tbox_order_no, R_desplay_bar):
                                tbox_item_price=tbox_item_price, 
                                l_desplay_bar=l_desplay_bar, 
                                tbox_order_no=tbox_order_no, 
-                               R_desplay_bar=R_desplay_bar: 
+                               R_desplay_bar=R_desplay_bar:
                                on_item_grid_click(i, j, tbox_total_price, 
                                                   tbox_item_price, 
                                                   l_desplay_bar, tbox_order_no, 
-                                                  R_desplay_bar))
+                                                  R_desplay_bar, window_main))
+            button.pack()
+
+def selected_product_grid_button(i, tbox_total_price, tbox_item_price, 
+l_desplay_bar, tbox_order_no, R_desplay_bar, window_main):
+    """code for the selected product grid buttons"""
+    global order_list, loop
+    order_list.pop(i)
+    loop = True
+    update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
+    tbox_order_no, R_desplay_bar, window_main)
+
+def selected_products(lframe, tbox_total_price, tbox_item_price, l_desplay_bar, 
+tbox_order_no, R_desplay_bar, window_main):
+    """Display the most recent selected products in a item grid"""
+    global order_list
+    top_list = order_list[:18]
+    if len(top_list) != 0:
+        lbframe = tk.Frame(master=lframe, bg=bg_color)
+        lbframe.place(x=25, y=170, width=550, height=420)
+        for i in range(len(top_list)):
+            row = i // 3  # Determine the row
+            col = i % 3   # Determine the column
+            frame = tk.Frame(master=lbframe, relief=tk.RAISED, borderwidth=1, 
+                             bg="white")
+            frame.grid(row=row,column=col,padx=8,pady=8)
+            # Create a label for each selected product
+            if len(top_list[i][1]) > 20:
+                # If the item name is too long, cut it to 20 characters
+                item_name = top_list[i][1][:20]
+            else:
+                item_name = top_list[i][1]
+            button = tk.Button(master=frame, text=item_name, width=14, 
+                               height=2, bg=white, fg=text_color, 
+                               font=('Arial', 12, "bold"), command=lambda i=i: 
+                               selected_product_grid_button
+                               (i, tbox_total_price, tbox_item_price, 
+                                l_desplay_bar, tbox_order_no, R_desplay_bar, 
+                                window_main))
             button.pack()
 
 def main_menu():
@@ -499,14 +568,14 @@ def main_menu():
     global exit, bg_color, label_color, white, text_color
     while exit == False:
         # Create the mian menu window
-        window = tk.Tk()
-        window.title("Login Window")
-        window.geometry("1000x650")
-        window.config(bg=bg_color)
-        window.resizable(width=False, height=False)
+        window_main = tk.Tk()
+        window_main.title("Login Window")
+        window_main.geometry("1000x650")
+        window_main.config(bg=bg_color)
+        window_main.resizable(width=False, height=False)
         
         # create the left menu frame
-        lframe = tk.Frame(master=window,bg="white")
+        lframe = tk.Frame(master=window_main,bg="white")
         lframe.place(x=15,y=15,width=600,height=620)
         lb_total_price = tk.Label(master=lframe, text="Total Price", 
                                   font=('Arial',12,"bold"), fg=text_color, 
@@ -529,8 +598,11 @@ def main_menu():
                                 state="disabled", borderwidth=2, bg=bg_color)
         
         # Create the right menu frame
-        key_pad(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        key_pad(window_main, tbox_total_price, tbox_item_price, l_desplay_bar, 
+        tbox_order_no, R_desplay_bar, window_main)
+
+        selected_products(lframe, tbox_total_price, tbox_item_price, 
+        l_desplay_bar, tbox_order_no, R_desplay_bar, window_main)
         
         # place all the widgets in the frame
         lb_total_price.place(x=50,y=15)
@@ -543,10 +615,12 @@ def main_menu():
         l_desplay_bar.place(x=15,y=100)
 
         # update the order details
+        global loop
+        loop = False
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window_main)
 
-        window.mainloop()
+        window_main.mainloop()
 
         if exit == False:
             # exit the program if the user clicks the exit button
@@ -562,7 +636,7 @@ def sub_menu():
     while exit == False:
         # Create the sub menu window
         window = tk.Tk()
-        window.title("Login Window")
+        window.title("sub menu Window")
         window.geometry("1000x650")
         window.config(bg=bg_color)
         window.resizable(width=False, height=False)
@@ -592,10 +666,10 @@ def sub_menu():
 
         # Create the right menu frame
         key_pad(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window)
 
         item_grid(window, tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window)
         
         # place all the widgets in the frame
         lb_total_price.place(x=50,y=15)
@@ -609,7 +683,7 @@ def sub_menu():
 
         # update the order details
         update_details(tbox_total_price, tbox_item_price, l_desplay_bar, 
-        tbox_order_no, R_desplay_bar)
+        tbox_order_no, R_desplay_bar, window)
 
         window.mainloop()
 
@@ -653,7 +727,7 @@ def cheek_login(username_entry, password_entry, window):
         
         # Check if the username and password are correct
         cursor = d_b.cursor()
-        qrl = f"""SELECT name FROM staff WHERE username = 
+        qrl = f"""SELECT name FROM Staff WHERE username = 
         "{username_entry.get()}" AND password = "{password_entry.get()}";"""
         cursor.execute(qrl)
         results = cursor.fetchall()
@@ -662,7 +736,7 @@ def cheek_login(username_entry, password_entry, window):
                                 f"Login successful! \n Welcome {results[0][0]}")
             
             # get the staff id
-            qrl = f"""SELECT staff_id, name FROM staff WHERE username = 
+            qrl = f"""SELECT staff_id, name FROM Staff WHERE username = 
             "{username_entry.get()}" AND password = "{password_entry.get()}";"""
             cursor.execute(qrl)
             results = cursor.fetchall()
